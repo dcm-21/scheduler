@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block body %}<h2>Edit resource</h2><div class="card form"><form method="post">
+<label>Name</label><input name="name" value="{{ r.name }}" required>
+<label>Type</label><select name="kind">{% for k in ['room','vehicle'] %}<option {{ 'selected' if r.kind==k }}>{{ k }}</option>{% endfor %}</select>
+<label><input type="checkbox" name="active" style="width:auto" {{ 'checked' if r.active }}> Available for booking</label>
+<p><button class="btn">Save</button> <a class="btn sec" href="/admin/resources">Cancel</a></p></form></div>{% endblock %}

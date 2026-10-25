@@ -1,0 +1,75 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CHMCI Scheduler</title><link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}"><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head><body>
+{% if session.uid %}<header><div class="bar"><div class="logo-row"><a href="/"><img class="logo" src="{{ url_for('static', filename='header-logo.png') }}" alt="" onerror="this.style.display='none'"></a>{% if session.uid %}<span class="nrow"><button type="button" id="nbtn" class="btn sec sm" style="display:none">Enable notifications</button><span class="nwrap"><button type="button" id="bell" class="bell" title="Notifications" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="bcount" class="bcount" style="display:none">0</span></button><div id="npanel" style="display:none"></div></span></span>{% endif %}</div>
+{% if session.uid %}<nav><a class="brand" href="/">Scheduler</a>{% set p=request.path %}<a href="/" class="{{ 'on' if p=='/' }}">Calendar</a><a href="/request" class="{{ 'on' if p.startswith('/request') }}">New request</a><a href="/my" class="{{ 'on' if p.startswith('/my') }}">My requests</a><a href="/all" class="{{ 'on' if p.startswith('/all') }}">All requests</a>
+{% if session.role in ['approver','admin'] %}<a href="/approvals" class="{{ 'on' if p.startswith('/approvals') }}">Approvals</a>{% endif %}
+{% if session.role=='admin' %}<a href="/admin" class="{{ 'on' if p=='/admin' }}">Dashboard</a><a href="/admin/users" class="{{ 'on' if p.startswith('/admin/users') }}">Users</a><a href="/admin/resources" class="{{ 'on' if p.startswith('/admin/resources') }}">Rooms / Vehicles</a>{% endif %}</nav>
+<span class="who"><span class="uname">{{ session.name }} &middot;</span><a href="/logout" onclick="return confirm('Are you sure you want to log out?')">Logout</a></span>{% else %}{% endif %}</div></header>{% endif %}
+<main{% if not session.uid %} class="auth"{% endif %}>{% for m in get_flashed_messages() %}<div class="flash">{{ m }}</div>{% endfor %}{% block body %}{% endblock %}</main>{% if session.uid %}<div id="toasts"></div><script>
+(function(){
+var KEY='rs_last_event',btn=document.getElementById('nbtn'),bell=document.getElementById('bell'),
+ cnt=document.getElementById('bcount'),panel=document.getElementById('npanel'),
+ has='Notification' in window,timer,swReg=null;
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('/sw.js').then(function(r){swReg=r;}).catch(function(){});
+ navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.openPanel)openPanel();});
+}
+function badge(n){cnt.textContent=n>99?'99+':n;cnt.style.display=n>0?'flex':'none';}
+function toast(t,b,more){var box=document.getElementById('toasts');box.innerHTML='';
+ var d=document.createElement('div'),h=document.createElement('strong'),m=document.createElement('div'),
+  a=document.createElement('button'),x=document.createElement('button');
+ d.className='flash toast';h.textContent=t;m.className='tbody';m.textContent=b;
+ x.type='button';x.className='tx';x.title='Close';x.innerHTML='&times;';x.onclick=function(){d.remove();};
+ a.type='button';a.className='btn sm tall';a.textContent='See all notifications'+(more>0?' (+'+more+' more)':'');
+ a.onclick=function(){d.remove();seeAll();};
+ d.appendChild(x);d.appendChild(h);d.appendChild(m);d.appendChild(a);box.appendChild(d);}
+function seeAll(){window.scrollTo({top:0,behavior:'smooth'});openPanel();
+ bell.classList.remove('ping');void bell.offsetWidth;bell.classList.add('ping');}
+function show(e){
+ if(has&&Notification.permission==='granted'){
+  var o={body:e.body,icon:'/static/logo.png',tag:'rs-latest',renotify:true,requireInteraction:true};
+  try{
+   if(swReg){swReg.showNotification(e.title,o);return;}
+   var n=new Notification(e.title,o);
+   n.onclick=function(){window.focus();n.close();openPanel();};return;
+  }catch(x){}
+ }
+ toast(e.title,e.body,e.more||0);}
+function fmt(c){var d=new Date(c.replace(' ','T')+'Z');return isNaN(d)?'':d.toLocaleString([],{month:'2-digit',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'});}
+function render(items){
+ panel.innerHTML='';var h=document.createElement('h4');h.textContent='Notifications';panel.appendChild(h);
+ if(!items.length){var m=document.createElement('div');m.className='nempty';m.textContent='No notifications';panel.appendChild(m);return;}
+ items.forEach(function(it){
+  var row=document.createElement('div'),tx=document.createElement('div'),s=document.createElement('strong'),
+   sm=document.createElement('div'),x=document.createElement('button');
+  row.className='nitem';tx.className='nt';s.textContent=it.title;
+  sm.className='muted';sm.textContent=fmt(it.created);
+  tx.appendChild(s);tx.appendChild(document.createTextNode('\n'+it.body));tx.appendChild(sm);
+  x.type='button';x.className='nx';x.title='Close';x.innerHTML='&times;';
+  x.onclick=function(){
+   fetch('/events/'+it.id+'/dismiss',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();})
+   .then(function(j){row.remove();badge(j.unread);if(!panel.querySelector('.nitem'))render([]);}).catch(function(){});
+  };
+  row.appendChild(tx);row.appendChild(x);panel.appendChild(row);});}
+function load(){fetch('/notifications',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();})
+ .then(function(j){render(j.items||[]);badge(j.unread||0);}).catch(function(){});}
+function panelOpen(){return panel.style.display!=='none';}
+function openPanel(){panel.style.display='block';load();}
+function closePanel(){panel.style.display='none';}
+bell.onclick=function(e){e.stopPropagation();panelOpen()?closePanel():openPanel();};
+panel.onclick=function(e){e.stopPropagation();};
+document.addEventListener('click',closePanel);
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closePanel();});
+function poll(){var last=null;try{last=localStorage.getItem(KEY);}catch(x){}
+ fetch('/events'+(last!==null?'?after='+encodeURIComponent(last):''),{credentials:'same-origin',cache:'no-store'})
+ .then(function(r){if(r.status===401){clearInterval(timer);return null;}return r.json();})
+ .then(function(j){if(!j)return;badge(j.unread||0);
+  if((j.events||[]).length){var ev=j.events,l=ev[ev.length-1];l.more=ev.length-1;show(l);if(panelOpen())load();}
+  try{localStorage.setItem(KEY,j.last);}catch(x){}})
+ .catch(function(){});}
+function sync(){if(btn)btn.style.display=(has&&Notification.permission==='default')?'':'none';}
+if(btn){btn.onclick=function(){Notification.requestPermission().then(sync);};sync();}
+if(location.hash==='#notifications')openPanel();
+poll();timer=setInterval(poll,5000);
+})();
+</script>{% endif %}</body></html>

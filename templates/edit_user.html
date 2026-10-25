@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% block body %}<h2>Edit user</h2><div class="card form"><form method="post">
+<label>Username</label><input name="username" value="{{ u.username }}" required>
+<label>Department</label><input name="department" value="{{ u.department }}">
+<label>Role</label><select name="role">{% for r in ['requestor','approver','admin'] %}<option {{ 'selected' if u.role==r }}>{{ r }}</option>{% endfor %}</select>
+<label>New password (leave blank to keep current)</label><input name="password" type="password" pattern="(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}" minlength="8" title="At least 8 characters with letters, numbers and a special character (e.g. @ # $ !)"><p class="muted">If you set one: at least 8 characters with letters, numbers and a special character (for example @ # $ !).</p>
+<p><button class="btn">Save</button> <a class="btn sec" href="/admin/users">Cancel</a></p></form></div>{% endblock %}

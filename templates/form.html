@@ -1,0 +1,73 @@
+{% extends 'base.html' %}{% block body %}{% macro tp(name) %}<div class="tpick" data-name="{{ name }}" style="min-width:240px"><label>{{ 'Start' if name=='start' else 'End' }}</label>
+<button type="button" class="tpf" aria-haspopup="dialog"><span class="tv"></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>
+<input type="hidden" name="{{ name }}"><div class="tpop" role="dialog" tabindex="-1" style="display:none"></div></div>{% endmacro %}
+<h2>New request</h2><div class="card form wide"><form method="post">
+<label>Department</label><input name="department" value="{{ session.dept }}" required>
+<label>Room / vehicle</label><select name="resource_id">{% for r in res %}<option value="{{ r.id }}">{{ r.name }} ({{ r.kind }})</option>{% endfor %}</select>
+<label>Activity / event (vehicle: destination and purpose)</label><input name="activity" required>
+<div class="row"><div><label>Date</label><input type="date" name="date" min="{{ today }}" value="{{ today }}" required></div>
+{{ tp('start') }}{{ tp('end') }}</div><p class="muted">Click a time, scroll or click the hour, minute and AM/PM, then press the check mark.</p>
+<label>Participants / passengers</label><input type="number" name="participants" min="0">
+<label>Equipment needed</label><input name="equipment"><label>Remarks</label><textarea name="remarks" rows="3"></textarea>
+<p><button class="btn">Submit request</button></p></form></div><script>
+(function(){
+var H=40,openP=null;
+function pad(n){return ('0'+n).slice(-2);}
+function to24(c){return pad((c.h%12)+(c.pm?12:0))+':'+pad(c.m);}
+function label(c){return c.h+':'+pad(c.m)+' '+(c.pm?'PM':'AM');}
+function mins(c){return (c.h%12+(c.pm?12:0))*60+c.m;}
+function from24(mn){var h=Math.floor(mn/60);return {h:(h%12)||12,m:mn%60,pm:h>=12};}
+function makeCol(vals,loop,fmt){
+ var el=document.createElement('div'),n=vals.length,reps=loop?3:1,items=[],tm,col={el:el,onchange:function(){}};
+ el.className='tcol';
+ var top=document.createElement('div');top.className='pad';el.appendChild(top);
+ for(var r=0;r<reps;r++)vals.forEach(function(v,i){var d=document.createElement('div');d.textContent=fmt(v);d.dataset.i=r*n+i;el.appendChild(d);items.push(d);});
+ el.appendChild(top.cloneNode());
+ function index(){return Math.max(0,Math.min(items.length-1,Math.round(el.scrollTop/H)));}
+ function mark(i){items.forEach(function(d,k){d.classList.toggle('on',k===i);});}
+ col.value=function(){return vals[index()%n];};
+ col.jump=function(v){var vi=vals.indexOf(v),i=loop?n+vi:vi;
+  el.style.scrollSnapType='none';el.scrollTop=i*H;mark(i);
+  requestAnimationFrame(function(){el.style.scrollSnapType='';});};
+ el.addEventListener('scroll',function(){clearTimeout(tm);tm=setTimeout(function(){
+  var i=index();
+  if(loop&&(i<n||i>=2*n)){col.jump(vals[i%n]);}else{mark(i);}
+  col.onchange();},90);});
+ el.addEventListener('click',function(e){var d=e.target;if(d.dataset&&d.dataset.i!==undefined){
+  var i=+d.dataset.i;mark(i);el.scrollTo({top:i*H,behavior:'smooth'});}});
+ return col;
+}
+function closeAll(){if(openP){openP.style.display='none';openP=null;}}
+document.addEventListener('click',closeAll);
+document.querySelectorAll('.tpick').forEach(function(box){
+ var f=box.querySelector('.tpf'),tv=box.querySelector('.tv'),out=box.querySelector('input[type=hidden]'),pop=box.querySelector('.tpop');
+ var hv=[],mv=[],i;for(i=1;i<=12;i++)hv.push(i);for(i=0;i<60;i++)mv.push(i);
+ var hc=makeCol(hv,true,String),mc=makeCol(mv,true,pad),pc=makeCol(['AM','PM'],false,String);
+ var cols=document.createElement('div'),band=document.createElement('div'),bt=document.createElement('div'),
+  ok=document.createElement('button'),no=document.createElement('button');
+ cols.className='tcols';band.className='tband';bt.className='tbtns';
+ ok.type=no.type='button';ok.innerHTML='&#10003;';no.innerHTML='&#10005;';ok.title='OK';no.title='Cancel';
+ cols.appendChild(band);cols.appendChild(hc.el);cols.appendChild(mc.el);cols.appendChild(pc.el);
+ bt.appendChild(ok);bt.appendChild(no);pop.appendChild(cols);pop.appendChild(bt);
+ box.tp={cur:null,set:function(c){this.cur=c;out.value=to24(c);tv.textContent=label(c);}};
+ function openIt(){
+  closeAll();pop.style.display='block';openP=pop;pop.style.left='0';pop.style.right='auto';
+  if(pop.getBoundingClientRect().right>window.innerWidth){pop.style.left='auto';pop.style.right='0';}
+  var c=box.tp.cur;hc.jump(c.h);mc.jump(c.m);pc.jump(c.pm?'PM':'AM');pop.focus();
+ }
+ f.addEventListener('click',function(e){e.stopPropagation();pop.style.display==='block'?closeAll():openIt();});
+ pop.addEventListener('click',function(e){e.stopPropagation();});
+ no.onclick=function(){closeAll();f.focus();};
+ ok.onclick=function(){
+  var c={h:hc.value(),m:mc.value(),pm:pc.value()==='PM'};box.tp.set(c);
+  var other=document.querySelector('.tpick[data-name=end]');
+  if(box.dataset.name==='start'&&mins(other.tp.cur)<=mins(c)){other.tp.set(from24(Math.min(mins(c)+60,23*60+59)));}
+  closeAll();f.focus();};
+ pop.addEventListener('keydown',function(e){if(e.key==='Escape'){no.onclick();}else if(e.key==='Enter'){e.preventDefault();ok.onclick();}});
+});
+var now=new Date(),h=now.getHours()+1;if(h>22)h=8;
+document.querySelector('.tpick[data-name=start]').tp.set(from24(h*60));
+document.querySelector('.tpick[data-name=end]').tp.set(from24((h+1)*60));
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}{% block body %}<h2>{{ title }}</h2><div class="card wrap"><table>
+<tr><th>Resource</th><th>When</th><th>Activity</th><th>Requested by</th><th>Status</th><th>Decided by</th><th></th></tr>
+{% for r in rows %}<tr><td>{{ r.rname }}</td><td>{{ r.start_at|dt12 }} - {{ r.end_at|t12 }}</td>
+<td>{{ r.activity }}<br><button type="button" class="btn sec sm info" data-title="{{ r.activity }}" data-res="{{ r.rname }} ({{ r.kind }})" data-people="{{ r.participants }}" data-equip="{{ r.equipment }}" data-remarks="{{ r.remarks }}">More info</button></td>
+<td>{{ r.username }}<br><span class="muted">{{ r.department }} &middot; {{ r.created|local12 }}</span></td>
+<td><span class="badge {{ r.status }}">{{ r.status }}</span></td><td>{{ r.decider or '-' }}</td><td>
+{% if manage %}<form class="inline" method="post" action="/action/{{ r.id }}/approve"><button class="btn ok sm">Approve</button></form>
+<form class="inline" method="post" action="/action/{{ r.id }}/reject"><button class="btn bad sm">Reject</button></form>{% endif %}
+{% if r.status in ['pending','approved'] and (r.user_id==session.uid or session.role in ['approver','admin']) %}<form class="inline" method="post" action="/action/{{ r.id }}/cancel"><button class="btn sec sm">Cancel</button></form>{% endif %}
+{% if session.role=='admin' %}<form class="inline" method="post" action="/admin/requests/{{ r.id }}/delete" onsubmit="return confirm('Permanently delete this request?')"><button class="btn bad sm">Delete</button></form>{% endif %}
+</td></tr>{% else %}<tr><td colspan="7" class="muted">Nothing here.</td></tr>{% endfor %}</table></div><dialog id="info"><h3 style="margin-top:0">Request details</h3><table class="kv">
+<tr><th>Title</th><td id="i_title"></td></tr><tr><th>Resource</th><td id="i_res"></td></tr>
+<tr><th>Number of participants</th><td id="i_people"></td></tr><tr><th>Equipment needed</th><td id="i_equip"></td></tr>
+<tr><th>Remarks</th><td id="i_remarks"></td></tr></table>
+<p style="text-align:right;margin-bottom:0"><button type="button" class="btn" id="i_close">Close</button></p></dialog>
+<script>
+(function(){var dlg=document.getElementById('info');
+function set(id,v){document.getElementById(id).textContent=(v&&v!=='0')?v:'-';}
+document.querySelectorAll('.info').forEach(function(b){b.addEventListener('click',function(){
+ var d=b.dataset;set('i_title',d.title);set('i_res',d.res);set('i_people',d.people);set('i_equip',d.equip);set('i_remarks',d.remarks);dlg.showModal();});});
+document.getElementById('i_close').addEventListener('click',function(){dlg.close();});
+dlg.addEventListener('click',function(e){if(e.target===dlg)dlg.close();});})();
+</script>{% endblock %}

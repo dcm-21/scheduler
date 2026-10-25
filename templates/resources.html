@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% block body %}<h2>Rooms / Vehicles</h2>
+<div class="card"><form method="post"><div class="row"><div><label>Name</label><input name="name" required></div>
+<div><label>Type</label><select name="kind"><option value="room">Room / facility</option><option value="vehicle">Vehicle</option></select></div>
+<div><button class="btn">Add</button></div></div></form></div>
+<div class="card wrap"><table><tr><th>Name</th><th>Type</th><th>Status</th><th></th></tr>
+{% for r in rows %}<tr><td>{{ r.name }}</td><td>{{ r.kind }}</td><td>{% if r.active %}<span class="badge approved">Active</span>{% else %}<span class="badge off">Hidden</span>{% endif %}</td><td>
+<a class="btn sec sm" href="/admin/resources/{{ r.id }}/edit">Edit</a>
+<form class="inline" method="post" action="/admin/resources/{{ r.id }}/delete" onsubmit="return confirm('Delete {{ r.name }} and all of its requests?')"><button class="btn bad sm">Delete</button></form>
+</td></tr>{% endfor %}</table></div>{% endblock %}

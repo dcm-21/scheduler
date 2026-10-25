@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block body %}<h2>Availability{% if v=='month' %} &ndash; {{ d.strftime('%B %Y') }}{% endif %}</h2>
+<p><a class="btn sm {{ '' if v=='week' else 'sec' }}" href="/?d={{ d }}&v=week">Week</a> <a class="btn sm {{ '' if v=='month' else 'sec' }}" href="/?d={{ d }}&v=month">Month</a>
+&nbsp; <a class="btn sec sm" href="/?d={{ prev }}&v={{ v }}">&laquo; Prev</a> <a class="btn sec sm" href="/?v={{ v }}">{{ 'This month' if v=='month' else 'This week' }}</a> <a class="btn sec sm" href="/?d={{ nxt }}&v={{ v }}">Next &raquo;</a></p>
+{% if v=='month' %}<div class="card wrap"><table class="cal month"><tr><th>Resource</th>{% for x in days %}<th><a href="/?d={{ x.isoformat() }}&v=week">{{ x.day }}</a><br><span class="muted">{{ x.strftime('%a')[0] }}</span></th>{% endfor %}</tr>
+{% for r in res %}<tr><th>{{ r.name }}<br><span class="muted">{{ r.kind }}</span></th>{% for x in days %}{% set L = cal.get((r.id, x.isoformat()), []) %}<td>
+{% if L %}<a class="dot {{ 'pending' if L|selectattr('status','equalto','pending')|list else 'approved' }}" href="/?d={{ x.isoformat() }}&v=week" title="{% for b in L %}{{ b.start_at|t12 }} - {{ b.end_at|t12 }} {{ b.activity }} ({{ b.department }}) by {{ b.username }}&#10;{% endfor %}">{{ L|length }}</a>{% endif %}</td>{% endfor %}</tr>{% endfor %}</table></div>
+<p class="muted">Each number is how many bookings that resource has that day. Hover or click a number to see the details. Green = approved, yellow = at least one pending, empty = available.</p>
+{% else %}<div class="card wrap"><table class="cal"><tr><th>Resource</th>{% for x in days %}<th>{{ x.strftime('%a %d %b') }}</th>{% endfor %}</tr>
+{% for r in res %}<tr><th>{{ r.name }}<br><span class="muted">{{ r.kind }}</span></th>{% for x in days %}<td>
+{% for b in cal.get((r.id, x.isoformat()), []) %}<div class="slot {{ b.status }}"><b>{{ b.start_at|t12 }} - {{ b.end_at|t12 }}</b> {{ b.activity }} ({{ b.department }})<br><span class="muted">by {{ b.username }}{% if b.status=='approved' and b.decider %} &middot; approved by {{ b.decider }}{% endif %}</span></div>{% endfor %}</td>{% endfor %}</tr>{% endfor %}</table></div>
+<p class="muted">Green = approved, yellow = pending, empty = available.</p>{% endif %}{% endblock %}
