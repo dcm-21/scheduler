@@ -1,0 +1,14 @@
+services:
+  chmci-scheduler:
+    build: .
+    container_name: chmci-scheduler
+    ports:
+      - "5051:5051"
+    environment:
+      - SECRET_KEY=change-me-to-something-random
+      - TZ=Asia/Manila
+      # Only used when creating a brand-new database:
+      - ADMIN_PASSWORD=Admin2026!
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
